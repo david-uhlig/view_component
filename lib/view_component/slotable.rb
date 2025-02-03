@@ -26,7 +26,7 @@ module ViewComponent
       #
       # = Example
       #
-      #   renders_one :header -> (classes:) do
+      #   renders_one :header, -> (classes:) do
       #     HeaderComponent.new(classes: classes)
       #   end
       #
