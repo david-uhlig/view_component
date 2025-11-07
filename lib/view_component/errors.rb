@@ -38,6 +38,22 @@ module ViewComponent
     end
   end
 
+  class MissingTemplateError < StandardError
+    MESSAGE =
+      "No templates for COMPONENT match the request DETAIL.\n\n" \
+      "To fix this issue, provide a suitable template."
+
+    def initialize(component, request_detail)
+      detail = {
+        locale: request_detail.locale,
+        formats: request_detail.formats,
+        variants: request_detail.variants,
+        handlers: request_detail.handlers
+      }
+      super(MESSAGE.gsub("COMPONENT", component).gsub("DETAIL", detail.inspect))
+    end
+  end
+
   class DuplicateContentError < StandardError
     MESSAGE =
       "It looks like a block was provided after calling `with_content` on COMPONENT, " \
@@ -46,18 +62,6 @@ module ViewComponent
 
     def initialize(klass_name)
       super(MESSAGE.gsub("COMPONENT", klass_name.to_s))
-    end
-  end
-
-  class EmptyOrInvalidInitializerError < StandardError
-    MESSAGE =
-      "The COMPONENT initializer is empty or invalid. " \
-      "It must accept the parameter `PARAMETER` to render it as a collection.\n\n" \
-      "To fix this issue, update the initializer to accept `PARAMETER`.\n\n" \
-      "See [the collections docs](https://viewcomponent.org/guide/collections.html) for more information on rendering collections."
-
-    def initialize(klass_name, parameter)
-      super(MESSAGE.gsub("COMPONENT", klass_name.to_s).gsub("PARAMETER", parameter.to_s))
     end
   end
 
@@ -177,7 +181,7 @@ module ViewComponent
 
   class TranslateCalledBeforeRenderError < BaseError
     MESSAGE =
-      "`#translate` can't be used during initialization as it depends " \
+      "`#translate` can't be used before rendering as it depends " \
       "on the view context that only exists once a ViewComponent is passed to " \
       "the Rails render pipeline.\n\n" \
       "It's sometimes possible to fix this issue by moving code dependent on " \
@@ -186,7 +190,7 @@ module ViewComponent
 
   class HelpersCalledBeforeRenderError < BaseError
     MESSAGE =
-      "`#helpers` can't be used during initialization as it depends " \
+      "`#helpers` can't be used before rendering as it depends " \
       "on the view context that only exists once a ViewComponent is passed to " \
       "the Rails render pipeline.\n\n" \
       "It's sometimes possible to fix this issue by moving code dependent on " \
@@ -195,33 +199,11 @@ module ViewComponent
 
   class ControllerCalledBeforeRenderError < BaseError
     MESSAGE =
-      "`#controller` can't be used during initialization, as it depends " \
+      "`#controller` can't be used before rendering, as it depends " \
       "on the view context that only exists once a ViewComponent is passed to " \
       "the Rails render pipeline.\n\n" \
       "It's sometimes possible to fix this issue by moving code dependent on " \
       "`#controller` to a [`#before_render` method](https://viewcomponent.org/api.html#before_render--void)."
-  end
-
-  # :nocov:
-  class NoMatchingTemplatesForPreviewError < StandardError
-    MESSAGE = "Found 0 matches for templates for TEMPLATE_IDENTIFIER."
-
-    def initialize(template_identifier)
-      super(MESSAGE.gsub("TEMPLATE_IDENTIFIER", template_identifier))
-    end
-  end
-
-  class MultipleMatchingTemplatesForPreviewError < StandardError
-    MESSAGE = "Found multiple templates for TEMPLATE_IDENTIFIER."
-
-    def initialize(template_identifier)
-      super(MESSAGE.gsub("TEMPLATE_IDENTIFIER", template_identifier))
-    end
-  end
-  # :nocov:
-
-  class SystemTestControllerOnlyAllowedInTestError < BaseError
-    MESSAGE = "ViewComponent SystemTest controller must only be called in a test environment for security reasons."
   end
 
   class SystemTestControllerNefariousPathError < BaseError

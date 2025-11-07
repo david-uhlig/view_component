@@ -1,6 +1,7 @@
 *.gem
 *.rbc
 .ruby-version
+.DS_Store
 /.config
 /coverage/assets
 /coverage/index.html
@@ -44,5 +45,4 @@ build-iPhoneSimulator/
 /replicate-bug
 
 # Appraisal
-/gemfiles/*.gemfile.lock
 /gemfiles/.bundle/

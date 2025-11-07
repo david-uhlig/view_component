@@ -4,7 +4,7 @@ require "test_helper"
 
 class RenderPreviewTest < ViewComponent::TestCase
   def setup
-    ViewComponent::Preview.load_previews
+    ViewComponent::Preview.__vc_load_previews
   end
 
   def test_render_preview_from_class
@@ -23,5 +23,11 @@ class RenderPreviewTest < ViewComponent::TestCase
     render_preview(:other, from: Unsuffixed::OtherPreview)
 
     assert_selector("div", text: "subclass")
+  end
+
+  def test_render_preview_custom_path
+    render_preview(:default, from: MyComponentLibPreview)
+
+    assert_selector("div", text: "hello,world!")
   end
 end

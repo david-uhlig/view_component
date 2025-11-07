@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "test_helper"
+require "view_component/configurable"
 
 class ViewComponent::Base::UnitTest < Minitest::Test
   def test_identifier
@@ -43,7 +44,7 @@ class ViewComponent::Base::UnitTest < Minitest::Test
       assert_raises ViewComponent::HelpersCalledBeforeRenderError do
         component.helpers
       end
-    assert_includes err.message, "can't be used during initialization"
+    assert_includes err.message, "can't be used before rendering"
   end
 
   def test_calling_controller_outside_render_raises
@@ -53,7 +54,7 @@ class ViewComponent::Base::UnitTest < Minitest::Test
         component.controller
       end
 
-    assert_includes err.message, "can't be used during initialization"
+    assert_includes err.message, "can't be used before rendering"
   end
 
   def test_sidecar_files
@@ -88,7 +89,6 @@ class ViewComponent::Base::UnitTest < Minitest::Test
   end
 
   def test_does_not_render_additional_newline_with_render_in
-    skip unless Rails::VERSION::MAJOR >= 7
     without_template_annotations do
       ActionView::Template::Handlers::ERB.strip_trailing_newlines = true
       rendered_output = Array.new(2) {
@@ -97,7 +97,7 @@ class ViewComponent::Base::UnitTest < Minitest::Test
       assert_includes rendered_output, "<span>Hello, world!</span><span>Hello, world!</span>"
     end
   ensure
-    ActionView::Template::Handlers::ERB.strip_trailing_newlines = false if Rails::VERSION::MAJOR >= 7
+    ActionView::Template::Handlers::ERB.strip_trailing_newlines = false
   end
 
   def test_evaled_component
@@ -121,7 +121,7 @@ class ViewComponent::Base::UnitTest < Minitest::Test
     exception_message_regex = Regexp.new <<~MESSAGE.chomp, Regexp::MULTILINE
       undefined method `current_user' for .*
 
-      You may be trying to call a method provided as a view helper. Did you mean `helpers.current_user'?
+      You may be trying to call a method provided as a view helper. Did you mean `helpers.current_user`?
     MESSAGE
     assert !exception_message_regex.match?(exception.message)
   end
@@ -134,7 +134,7 @@ class ViewComponent::Base::UnitTest < Minitest::Test
       end
     }
     exception = assert_raises(NameError) { ReferencesMethodOnHelpersComponent.new.render_in(view_context) }
-    exception_advice = "You may be trying to call a method provided as a view helper. Did you mean `helpers.current_user'?"
+    exception_advice = "You may be trying to call a method provided as a view helper. Did you mean `helpers.current_user`?"
     assert exception.message.include?(exception_advice)
   end
 
@@ -142,8 +142,57 @@ class ViewComponent::Base::UnitTest < Minitest::Test
     view_context = ActionController::Base.new.view_context
     exception = assert_raises(NameError) { ReferencesMethodOnHelpersComponent.new.render_in(view_context) }
     exception_message_regex = Regexp.new <<~MESSAGE.chomp
-      You may be trying to call a method provided as a view helper\\. Did you mean `helpers.current_user'\\?$
+      You may be trying to call a method provided as a view helper\\. Did you mean `helpers.current_user`\\?$
     MESSAGE
     assert !exception_message_regex.match?(exception.message)
+  end
+
+  module TestModuleWithoutConfig
+    class SomeComponent < ViewComponent::Base
+    end
+  end
+
+  # Config defined on top-level module as opposed to engine.
+  module TestModuleWithConfig
+    include ViewComponent::Configurable
+
+    configure do |config|
+      config.view_component.instrumentation_enabled = false
+    end
+
+    class SomeComponent < ViewComponent::Base
+    end
+  end
+
+  module TestAlreadyConfigurableModule
+    include ActiveSupport::Configurable
+    include ViewComponent::Configurable
+
+    configure do |config|
+      config.view_component.instrumentation_enabled = false
+    end
+
+    class SomeComponent < ViewComponent::Base
+    end
+  end
+
+  module TestAlreadyConfiguredModule
+    include ActiveSupport::Configurable
+
+    configure do |config|
+      config.view_component = ActiveSupport::InheritableOptions[instrumentation_enabled: false]
+    end
+
+    include ViewComponent::Configurable
+
+    class SomeComponent < ViewComponent::Base
+    end
+  end
+
+  def test_uses_module_configuration
+    assert_equal true, TestModuleWithoutConfig::SomeComponent.instrumentation_enabled
+    assert_equal false, TestModuleWithConfig::SomeComponent.instrumentation_enabled
+    assert_equal false, TestAlreadyConfigurableModule::SomeComponent.instrumentation_enabled
+    assert_equal false, TestAlreadyConfiguredModule::SomeComponent.instrumentation_enabled
   end
 end

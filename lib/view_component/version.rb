@@ -2,8 +2,8 @@
 
 module ViewComponent
   module VERSION
-    MAJOR = 3
-    MINOR = 21
+    MAJOR = 4
+    MINOR = 1
     PATCH = 0
     PRE = nil
 
